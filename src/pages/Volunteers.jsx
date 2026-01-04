@@ -11,6 +11,7 @@ import {
   FaBirthdayCake,
 } from "react-icons/fa";
 import { GrStatusGood } from "react-icons/gr";
+import { FaSort } from "react-icons/fa";
 
 export default function Volunteers() {
   const baseURL = import.meta.env.VITE_API_BASE_URL;
@@ -18,6 +19,8 @@ export default function Volunteers() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState("cards");
   const [selectedVolunteer, setSelectedVolunteer] = useState(null);
+  const [isReordering, setIsReordering] = useState(false);
+  const [reorderList, setReorderList] = useState([]);
 
   useEffect(() => {
     axios
@@ -70,6 +73,17 @@ export default function Volunteers() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">Volunteers</h1>
         <div className="flex gap-2 items-center">
+          <button
+            onClick={() => {
+              setIsReordering(true);
+              setReorderList([...volunteers]); // make a copy
+            }}
+            className="bg-[#FF5E3A] hover:bg-red-600 text-white px-3 py-1 rounded"
+          >
+            {/* Edit Order */}
+            <FaSort /> {/* Icon */}
+          </button>
+
           <input
             type="text"
             placeholder="Search..."
@@ -224,66 +238,103 @@ export default function Volunteers() {
         </div>
       )}
 
-      {/* Modal */}
-      {/* {selectedVolunteer && (
+      {isReordering && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-[90%] max-w-md space-y-4 shadow-xl relative">
+            {/* Close Button */}
             <button
-              onClick={() => setSelectedVolunteer(null)}
+              onClick={() => setIsReordering(false)}
               className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold"
             >
               &times;
             </button>
-            <div className="flex items-center gap-4">
-              <img
-                src={selectedVolunteer.profilePicture || "/default-profile.png"}
-                alt={selectedVolunteer.fullName}
-                className="w-20 h-20 rounded-full object-cover border-4 border-[#FF5E3A]"
-              />
-              <div>
-                <h2 className="text-lg font-semibold">
-                  {selectedVolunteer.fullName}
-                </h2>
-                <p className="text-sm text-gray-600 flex items-center gap-1">
-                  <FaEnvelope /> {selectedVolunteer.email}
-                </p>
-              </div>
+
+            {/* Modal Title */}
+            <h2 className="text-lg font-bold mb-2">Reorder Volunteers</h2>
+
+            {/* Reorder List */}
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {reorderList.map((v, index) => (
+                <div
+                  key={v._id}
+                  className="flex items-center justify-between bg-gray-100 p-2 rounded shadow"
+                >
+                  <span>{v.fullName}</span>
+                  <div className="flex gap-1">
+                    <button
+                      disabled={index === 0}
+                      onClick={() => {
+                        const newList = [...reorderList];
+                        [newList[index], newList[index - 1]] = [
+                          newList[index - 1],
+                          newList[index],
+                        ];
+                        setReorderList(newList);
+                      }}
+                      className="bg-gray-300 px-2 rounded hover:bg-gray-400"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      disabled={index === reorderList.length - 1}
+                      onClick={() => {
+                        const newList = [...reorderList];
+                        [newList[index], newList[index + 1]] = [
+                          newList[index + 1],
+                          newList[index],
+                        ];
+                        setReorderList(newList);
+                      }}
+                      className="bg-gray-300 px-2 rounded hover:bg-gray-400"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1 text-sm text-gray-700">
-              <p>
-                <FaPhoneAlt className="inline text-green-600" />{" "}
-                {selectedVolunteer.phone}
-              </p>
-              <p>
-                <FaMapMarkerAlt className="inline text-red-500" />{" "}
-                {selectedVolunteer.address}
-              </p>
-              <p>
-                <FaBirthdayCake className="inline text-purple-500" />{" "}
-                {new Date(selectedVolunteer.dob).toLocaleDateString("en-GB")}
-              </p>
-              <p>
-                <GrStatusGood className="inline text-green-600" />{" "}
-                {selectedVolunteer.status}
-              </p>
-              <p>
-                <GrStatusGood className="inline text-green-600" />{" "}
-                {selectedVolunteer.bloodGroup}
-              </p>
-              <p>
-                <GrStatusGood className="inline text-green-600" />{" "}
-                {selectedVolunteer.gender}
-              </p>
-              <p>
-                <FaCalendarAlt className="inline text-blue-500" /> Joined on:{" "}
-                {new Date(selectedVolunteer.createdAt).toLocaleDateString()}
-              </p>
+
+            {/* OK & Cancel Buttons */}
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    // send updated sequence to backend
+                    await axios.post(`${baseURL}/volunteers/reorder`, {
+                      order: reorderList.map((v, idx) => ({
+                        id: v._id,
+                        sequence: idx + 1,
+                      })),
+                    });
+
+                    // update frontend
+                    setVolunteers([...reorderList]);
+                    setIsReordering(false);
+                    alert("Volunteer order updated successfully");
+                  } catch (err) {
+                    console.error(err);
+                    alert("Failed to update order");
+                  }
+                }}
+                className="bg-green-500 text-white px-4 py-2 rounded"
+              >
+                OK
+              </button>
+
+              <button
+                onClick={() => setIsReordering(false)}
+                className="bg-red-500 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
-      )} */}
+      )}
 
-      {selectedVolunteer && (
+      {/* Modal */}
+
+      {/* {selectedVolunteer && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-[90%] max-w-md space-y-4 shadow-xl relative">
             <button
@@ -351,6 +402,7 @@ export default function Volunteers() {
                 })
               }
             >
+              <option value="president">President</option>
               <option value="committee member">Committee Member</option>
               <option value="member">Member</option>
               <option value="active member">Active Member</option>
@@ -361,6 +413,169 @@ export default function Volunteers() {
             <div className="flex justify-between">
               <button
                 onClick={() => handleUpdateVolunteer(selectedVolunteer)}
+                className="bg-[#28C76F] text-white px-4 py-2 rounded"
+              >
+                Update
+              </button>
+
+              <button
+                onClick={() => handleDeleteVolunteer(selectedVolunteer._id)}
+                className="bg-red-500 text-white px-4 py-2 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )} */}
+
+      {selectedVolunteer && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[90%] max-w-md space-y-4 shadow-xl relative">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedVolunteer(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold"
+            >
+              &times;
+            </button>
+
+            {/* Profile Picture Preview & Upload */}
+            <div className="flex flex-col items-center gap-2">
+              <img
+                src={
+                  selectedVolunteer.profilePreview ||
+                  selectedVolunteer.profilePicture ||
+                  "/default-profile.png"
+                }
+                alt={selectedVolunteer.fullName}
+                className="w-24 h-24 rounded-full object-cover border-4 border-[#FF5E3A]"
+              />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    setSelectedVolunteer({
+                      ...selectedVolunteer,
+                      profileFile: file, // store file for upload
+                      profilePreview: URL.createObjectURL(file), // temporary preview
+                    });
+                  }
+                }}
+                className="text-sm"
+              />
+            </div>
+
+            {/* Other Inputs */}
+            <input
+              className="w-full border p-2 rounded"
+              value={selectedVolunteer.fullName}
+              onChange={(e) =>
+                setSelectedVolunteer({
+                  ...selectedVolunteer,
+                  fullName: e.target.value,
+                })
+              }
+              placeholder="Full Name"
+            />
+
+            <input
+              className="w-full border p-2 rounded"
+              value={selectedVolunteer.email}
+              onChange={(e) =>
+                setSelectedVolunteer({
+                  ...selectedVolunteer,
+                  email: e.target.value,
+                })
+              }
+              placeholder="Email"
+            />
+
+            <input
+              className="w-full border p-2 rounded"
+              value={selectedVolunteer.phone}
+              onChange={(e) =>
+                setSelectedVolunteer({
+                  ...selectedVolunteer,
+                  phone: e.target.value,
+                })
+              }
+              placeholder="Phone"
+            />
+
+            <input
+              className="w-full border p-2 rounded"
+              value={selectedVolunteer.address}
+              onChange={(e) =>
+                setSelectedVolunteer({
+                  ...selectedVolunteer,
+                  address: e.target.value,
+                })
+              }
+              placeholder="Address"
+            />
+
+            <select
+              className="w-full border p-2 rounded"
+              value={selectedVolunteer.status}
+              onChange={(e) =>
+                setSelectedVolunteer({
+                  ...selectedVolunteer,
+                  status: e.target.value,
+                })
+              }
+            >
+              <option value="president">President</option>
+              <option value="committee member">Committee Member</option>
+              <option value="member">Member</option>
+              <option value="active member">Active Member</option>
+              <option value="associate member">Associate Member</option>
+              <option value="secretary">Secretary</option>
+            </select>
+
+            {/* Buttons */}
+            <div className="flex justify-between">
+              <button
+                onClick={async () => {
+                  try {
+                    const formData = new FormData();
+                    formData.append("fullName", selectedVolunteer.fullName);
+                    formData.append("email", selectedVolunteer.email);
+                    formData.append("phone", selectedVolunteer.phone);
+                    formData.append("address", selectedVolunteer.address);
+                    formData.append("status", selectedVolunteer.status);
+
+                    // If new profile picture selected
+                    if (selectedVolunteer.profileFile) {
+                      formData.append(
+                        "profilePicture",
+                        selectedVolunteer.profileFile
+                      );
+                    }
+
+                    const res = await axios.put(
+                      `${baseURL}/volunteers/${selectedVolunteer._id}`,
+                      formData,
+                      {
+                        headers: { "Content-Type": "multipart/form-data" },
+                      }
+                    );
+
+                    setVolunteers((prev) =>
+                      prev.map((v) =>
+                        v._id === selectedVolunteer._id ? res.data.data : v
+                      )
+                    );
+
+                    setSelectedVolunteer(res.data.data);
+                    alert("Volunteer updated successfully");
+                  } catch (error) {
+                    console.error(error);
+                    alert("Failed to update volunteer");
+                  }
+                }}
                 className="bg-[#28C76F] text-white px-4 py-2 rounded"
               >
                 Update

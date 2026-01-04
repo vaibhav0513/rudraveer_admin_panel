@@ -66,6 +66,7 @@ export default function PendingVolunteers() {
                 }
               >
                 <option value="">Select Role</option>
+                  <option value="president">President</option>
                 <option value="committee member">Committee Member</option>
                 <option value="member">Member</option>
                 <option value="secretary">Secretary</option>
